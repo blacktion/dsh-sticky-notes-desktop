@@ -1,0 +1,85 @@
+{
+  "name": "dsh-sticky-notes-desktop",
+  "version": "0.1.0",
+  "description": "Sticky notes + screenshot annotations for DeepSeek Harness. Real always-on-top desktop windows (own Electron helper), edge snapping with auto-hide, click-through-safe mouse proximity reveal, a sidebar notes list, 便签闹钟 reminders, and a dedicated settings page for hotkeys and appearance.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.bundle.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./locale/icon.svg": "./locale/icon.svg"
+  },
+  "files": [
+    "lib",
+    "electron",
+    "locale",
+    "docs",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "DEVELOPMENT.md",
+    "DEVELOPMENT.zh.md",
+    "LICENSE"
+  ],
+  "icon": "./locale/icon.svg",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node tools/build-client.mjs",
+    "prepack": "node tools/build-client.mjs --check",
+    "test": "node tools/test-geometry.mjs && node tools/test-alarm-schedule.mjs && node tools/test-package.mjs && node tools/check-readme-links.mjs && node tools/build-client.mjs --check && node tools/test-client-load.mjs && node tools/test-tool-registration.mjs && node tools/check-tool-schemas.mjs && node tools/test-electron-helper.mjs && node tools/test-popup.mjs && node tools/test-popup-appearance.mjs && node tools/test-shot-actions.mjs && node tools/test-hide-modes.mjs && node tools/test-alarm-ring.mjs && node tools/test-note-appearance.mjs && node tools/test-helper-service.mjs && node tools/test-bridge.mjs",
+    "check": "node tools/build-client.mjs --check",
+    "check:readme": "node tools/check-readme-links.mjs",
+    "check:schemas": "node tools/check-tool-schemas.mjs",
+    "test:geometry": "node tools/test-geometry.mjs",
+    "test:alarm-schedule": "node tools/test-alarm-schedule.mjs",
+    "test:alarm-ring": "node tools/test-alarm-ring.mjs",
+    "test:alarm-ui": "node tools/test-alarm-ui.mjs",
+    "test:helper-service": "node tools/test-helper-service.mjs",
+    "test:service-ui": "node tools/test-service-ui.mjs",
+    "test:package": "node tools/test-package.mjs",
+    "test:client": "node tools/build-client.mjs && node tools/test-client-load.mjs",
+    "test:electron": "node tools/test-electron-helper.mjs",
+    "test:popup": "node tools/test-popup.mjs",
+    "test:popup-appearance": "node tools/test-popup-appearance.mjs",
+    "test:shot": "node tools/test-shot-actions.mjs",
+    "test:hide-modes": "node tools/test-hide-modes.mjs",
+    "test:appearance": "node tools/test-note-appearance.mjs",
+    "test:render": "node tools/render-note.mjs",
+    "test:probe-hotkey": "node tools/probe-hotkey.mjs",
+    "test:bridge": "node tools/test-helper-service.mjs && node tools/test-bridge.mjs",
+    "test:live": "node tools/test-live.mjs",
+    "test:ui": "node tools/test-ui.mjs"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "sticky-notes",
+    "screenshot",
+    "always-on-top"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": "^22.19.0 || >=24"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  }
+}

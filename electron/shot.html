@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>截图标注</title>
+    <link rel="stylesheet" href="shot.css" />
+  </head>
+  <body>
+    <!--
+      截图选区 / 标注窗口（CONTRACT.md 第 5 节「截图选区/标注窗口」）。
+
+      层级（都在 #layer 里，坐标单位 = 图像 CSS 像素）：
+        #screen   整屏截图底图（canvas，backing store = 物理像素，1:1 绘制，不缩放）
+        #overlay  标注层（canvas，backing store = 物理像素）
+        .mask     遮罩（4 块 + 无选区时的整屏 1 块），选区处「镂空」露出原始亮度底图
+        #selection 选区边框 + 8 个控制点 + 尺寸标签（纯 DOM，不参与导出）
+
+      工具条 / 提示条 / 文字输入框 / toast / 降级提示在 #layer 之外，
+      用页面坐标（page px）定位，避免被 view.scale 影响。
+    -->
+    <div id="stage">
+      <div id="layer">
+        <canvas id="screen" width="1" height="1"></canvas>
+        <canvas id="overlay" width="1" height="1"></canvas>
+
+        <div id="maskFull" class="mask" aria-hidden="true"></div>
+        <div id="maskTop" class="mask" aria-hidden="true"></div>
+        <div id="maskBottom" class="mask" aria-hidden="true"></div>
+        <div id="maskLeft" class="mask" aria-hidden="true"></div>
+        <div id="maskRight" class="mask" aria-hidden="true"></div>
+
+        <div id="selection" hidden>
+          <div class="handle" data-handle="nw" aria-hidden="true"></div>
+          <div class="handle" data-handle="n" aria-hidden="true"></div>
+          <div class="handle" data-handle="ne" aria-hidden="true"></div>
+          <div class="handle" data-handle="e" aria-hidden="true"></div>
+          <div class="handle" data-handle="se" aria-hidden="true"></div>
+          <div class="handle" data-handle="s" aria-hidden="true"></div>
+          <div class="handle" data-handle="sw" aria-hidden="true"></div>
+          <div class="handle" data-handle="w" aria-hidden="true"></div>
+          <div id="sizeLabel"></div>
+        </div>
+      </div>
+
+      <!-- 工具条：选区存在时显示，位置由 shot.js 计算（选区下方优先，放不下就翻到上方） -->
+      <div id="toolbar" role="toolbar" aria-label="标注工具" hidden>
+        <div class="group" role="group" aria-label="标注工具">
+          <button type="button" class="icon" data-tool="select" title="移动 / 调整选区" aria-label="移动或调整选区">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h5M4 5v5M20 5h-5M20 5v5M4 19h5M4 19v-5M20 19h-5M20 19v-5" /></svg>
+          </button>
+          <button type="button" class="icon" data-tool="rect" title="矩形框" aria-label="矩形框">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6.5" width="16" height="11" rx="1.5" /></svg>
+          </button>
+          <button type="button" class="icon" data-tool="ellipse" title="圆形 / 椭圆框" aria-label="圆形或椭圆框">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="8" ry="6" /></svg>
+          </button>
+          <button type="button" class="icon" data-tool="arrow" title="箭头" aria-label="箭头">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5M19 5h-7M19 5v7" /></svg>
+          </button>
+          <button type="button" class="icon" data-tool="pen" title="自由画笔" aria-label="自由画笔">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z" /><path d="M14 7l3 3" /></svg>
+          </button>
+          <button type="button" class="icon" data-tool="text" title="文字" aria-label="文字">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M12 6v13" /></svg>
+          </button>
+        </div>
+
+        <span class="sep" aria-hidden="true"></span>
+
+        <div class="group" id="swatches" role="group" aria-label="颜色">
+          <button type="button" class="swatch" data-color="#ff3b30" style="--c:#ff3b30" title="红色" aria-label="红色"></button>
+          <button type="button" class="swatch" data-color="#ff9500" style="--c:#ff9500" title="橙色" aria-label="橙色"></button>
+          <button type="button" class="swatch" data-color="#ffd60a" style="--c:#ffd60a" title="黄色" aria-label="黄色"></button>
+          <button type="button" class="swatch" data-color="#34c759" style="--c:#34c759" title="绿色" aria-label="绿色"></button>
+          <button type="button" class="swatch" data-color="#0a84ff" style="--c:#0a84ff" title="蓝色" aria-label="蓝色"></button>
+          <button type="button" class="swatch" data-color="#af52de" style="--c:#af52de" title="紫色" aria-label="紫色"></button>
+          <button type="button" class="swatch" data-color="#ffffff" style="--c:#ffffff" title="白色" aria-label="白色"></button>
+          <button type="button" class="swatch" data-color="#111111" style="--c:#111111" title="黑色" aria-label="黑色"></button>
+        </div>
+
+        <span class="sep" aria-hidden="true"></span>
+
+        <div class="group" id="widths" role="group" aria-label="线宽">
+          <button type="button" class="wbtn" data-width="2" title="细线" aria-label="细线">细</button>
+          <button type="button" class="wbtn" data-width="4" title="中线" aria-label="中线">中</button>
+          <button type="button" class="wbtn" data-width="7" title="粗线" aria-label="粗线">粗</button>
+        </div>
+
+        <div class="group" role="group" aria-label="字号">
+          <select id="fontSize" title="文字字号" aria-label="文字字号">
+            <option value="14">小 14</option>
+            <option value="18">中 18</option>
+            <option value="24">大 24</option>
+            <option value="32">特大 32</option>
+          </select>
+        </div>
+
+        <span class="sep" aria-hidden="true"></span>
+
+        <div class="group" role="group" aria-label="编辑">
+          <button type="button" id="undo" title="撤销（Ctrl+Z）" aria-label="撤销">撤销</button>
+          <button type="button" id="redo" title="重做（Ctrl+Y）" aria-label="重做">重做</button>
+          <button type="button" id="clear" title="清空全部标注" aria-label="清空全部标注">清空</button>
+        </div>
+
+        <span class="sep" aria-hidden="true"></span>
+
+        <div class="group" role="group" aria-label="输出">
+          <button type="button" id="saveFile" class="primary" title="导出 PNG 文件（Enter）" aria-label="保存图片">保存图片</button>
+          <button type="button" id="saveNote" title="截图存为便签（Ctrl+Enter）" aria-label="保存为便签">存为便签</button>
+          <button type="button" id="copy" title="复制到剪贴板（Ctrl+C）" aria-label="复制到剪贴板">复制</button>
+          <button type="button" id="cancel" title="取消本次截图（Esc）" aria-label="取消">取消</button>
+        </div>
+      </div>
+
+      <div id="textEditor" hidden>
+        <input id="textInput" type="text" maxlength="200" spellcheck="false" autocomplete="off" placeholder="输入文字后回车" />
+      </div>
+
+      <div id="hint">按住左键拖拽框选 · Enter 保存图片 · Ctrl+Enter 存为便签 · Esc 取消</div>
+      <div id="toast" hidden></div>
+
+      <div id="fallback" hidden>
+        <h1>截图窗口无法初始化</h1>
+        <p id="fallbackReason">未知原因。</p>
+        <p class="dim">这是降级提示：窗口没有白屏，但选区与标注功能不可用。</p>
+        <button type="button" id="fallbackClose">关闭窗口</button>
+      </div>
+    </div>
+
+    <script src="shot.js"></script>
+  </body>
+</html>

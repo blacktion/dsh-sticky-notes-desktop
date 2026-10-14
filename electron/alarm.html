@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src file: data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>便签闹钟</title>
+    <link rel="stylesheet" href="alarm.css" />
+  </head>
+  <body>
+    <div class="card" id="card">
+      <header class="bar" id="bar">
+        <span class="bell" aria-hidden="true">⏰</span>
+        <span class="label" id="label">便签闹钟</span>
+        <button type="button" class="close" id="close" title="关闭（Esc）" aria-label="关闭闹钟">关闭</button>
+      </header>
+
+      <div class="body" id="body">
+        <p class="text" id="text"></p>
+        <img class="image" id="image" alt="" hidden />
+      </div>
+
+      <footer class="foot" id="foot">
+        <span id="hint">点「关闭」或按 Esc 结束本次提醒</span>
+      </footer>
+    </div>
+
+    <p class="fallback" id="fallback" hidden></p>
+    <script src="alarm.js"></script>
+  </body>
+</html>

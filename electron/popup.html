@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>便签</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <!-- Rows are built by popup.js from the shared item table, so the labels and
+         ids cannot drift away from what the main process expects. -->
+    <div class="sheet" id="sheet" role="menu" aria-label="便签操作"></div>
+    <p class="fallback" id="fallback" hidden></p>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+# dsh-sticky-notes-desktop bundle patch.
+#
+# Mounts the plugin into the host composition of a dsh profile.
+#
+# The Host half owns:
+#   - the Electron helper lifecycle (always-on-top note windows),
+#   - the note/screenshot store on disk,
+#   - an authenticated JSON surface the browser half consumes.
+#
+# `id` stays `sticky-notes`: it is the entry id inside the composition, and the plugin's
+# `name` export, locale namespace, settings id and data directory all use it. Only the
+# package `name` below is tied to what the registry resolves.
+#
+# Install: `plugin_manager` → `install_bundle(spec)`, where spec is any of
+#   - an absolute path to this directory (what a local checkout uses),
+#   - an absolute path to a packed `.tgz`,
+#   - the published package name (`dsh-sticky-notes-desktop`).
+- insert:
+    - id: sticky-notes
+      # Node-resolvable package name — must stay in sync with package.json `name`.
+      name: 'dsh-sticky-notes-desktop'

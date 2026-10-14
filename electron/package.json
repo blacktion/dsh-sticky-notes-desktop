@@ -1,0 +1,7 @@
+{
+  "name": "dsh-sticky-notes-helper",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Electron helper app for the dsh-sticky-notes DSH plugin. Loaded as an app directory by our own Electron runtime.",
+  "main": "main.mjs"
+}

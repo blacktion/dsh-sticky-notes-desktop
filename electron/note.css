@@ -1,0 +1,397 @@
+/*
+ * dsh-sticky-notes — 便签窗口样式（契约 §5）。
+ *
+ * 载体是 frame:false + transparent:true 的无边框透明窗口：
+ *   - html/body 必须完全透明，否则圆角之外会出现白块；
+ *   - 圆角、边框、阴影全部画在 .note 容器内（窗口会裁掉容器外的阴影，
+ *     所以"柔和"感由内侧高光 + 内阴影 + 外阴影共同完成）；
+ *   - 页面填满窗口（100vw/100vh），不设置任何固定宽高。
+ *
+ * 主题变量由 note.js 依据 note.color / note.textColor / note.fontSize 写入，
+ * 这里全部给出兜底值，即使脚本晚一步执行也不会闪白或看不清。
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent; /* 铁律：整页透明 */
+  overflow: hidden;
+}
+
+body {
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Segoe UI", system-ui,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--note-fg, #3b3320);
+  cursor: default;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------- 便签容器 */
+
+.note {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* 只承担背景色与透明度的底层：不透明度不会波及文字 */
+.note-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: #fff3b0;
+  opacity: 1;
+  pointer-events: none;
+}
+
+/* 内侧柔和边缘：外阴影被窗口裁掉后，靠它保留"纸片"的立体感 */
+.note::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 0 14px rgba(0, 0, 0, 0.05), inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* --------------------------------------------------------------- 标题栏 */
+
+.titlebar {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap; /* 便签很窄时按钮换行，不会把按钮挤出视野 */
+  align-items: center;
+  align-content: center;
+  gap: 3px;
+  min-height: 28px;
+  padding: 2px 4px 2px 6px;
+  cursor: move; /* 拖动把手（用指针事件实现，不使用 app-region: drag） */
+  user-select: none;
+  -webkit-app-region: no-drag;
+  background: var(--note-bar-bg, rgba(255, 255, 255, 0.16));
+  border-bottom: 1px solid var(--note-fg-line, rgba(0, 0, 0, 0.14));
+}
+
+/* 类型标记：文本便签是圆点，截图便签是圆角方块 */
+.kind {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  pointer-events: none; /* 标记本身不拦拖动 */
+}
+
+.kind-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--note-fg, #3b3320);
+  opacity: 0.72;
+}
+
+body.kind-shot .kind-dot {
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--note-bg-color, #fff3b0);
+}
+
+.title-input {
+  flex: 1 1 40px;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 5px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  outline: none;
+  cursor: text;
+  user-select: text;
+  text-overflow: ellipsis;
+  -webkit-app-region: no-drag;
+}
+
+.title-input:hover {
+  background: var(--note-btn-bg, rgba(0, 0, 0, 0.08));
+}
+
+.title-input:focus {
+  background: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 0 0 1px var(--note-fg-line, rgba(0, 0, 0, 0.2));
+}
+
+.title-input::placeholder {
+  color: var(--note-fg-soft, rgba(0, 0, 0, 0.38));
+  font-weight: 400;
+}
+
+.actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.tb-btn {
+  -webkit-app-region: no-drag;
+  appearance: none;
+  margin: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--note-btn-bg, rgba(0, 0, 0, 0.08));
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tb-btn:hover {
+  background: var(--note-btn-bg-hover, rgba(0, 0, 0, 0.2));
+}
+
+.tb-btn:active {
+  transform: translateY(1px);
+}
+
+.tb-btn:focus-visible {
+  outline: 1px solid var(--note-fg-line, rgba(0, 0, 0, 0.4));
+  outline-offset: 1px;
+}
+
+/* 「未保存」草稿标记。必须一眼看出这条便签还没进便签列表，
+   否则用户会以为它已经存好了。 */
+.draft {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  margin-left: 2px;
+  border-radius: 999px;
+  background: rgba(210, 153, 34, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(210, 153, 34, 0.6);
+  color: var(--note-fg, #f5f5f5);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+.tb-btn.danger:hover,
+.tb-btn.danger.confirming {
+  background: rgba(198, 48, 40, 0.88);
+  color: #fff;
+}
+
+/* 「保留」处于生效状态：必须一眼看出这条便签不会自己藏起来，
+   否则用户无法解释它为什么和别的便签表现不同。 */
+.tb-btn.is-pinned {
+  background: var(--note-btn-bg-hover, rgba(0, 0, 0, 0.24));
+  box-shadow: inset 0 0 0 1px var(--note-fg-line, rgba(0, 0, 0, 0.4));
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------- 降级提示条 */
+
+.fallback {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 6px 10px;
+  background: rgba(198, 48, 40, 0.14);
+  border-bottom: 1px solid rgba(198, 48, 40, 0.3);
+  font-size: 11px;
+  line-height: 1.5;
+  user-select: text;
+}
+
+/* --------------------------------------------------------------- 正文区 */
+
+.content {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0; /* 关键：内容超出时正文自己滚动，不撑破窗口 */
+  display: flex;
+}
+
+.editor {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 10px;
+  border: 0;
+  outline: none;
+  resize: none; /* 缩放交给右下角握把 */
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: auto;
+  user-select: text;
+  cursor: text;
+  scrollbar-width: thin;
+  scrollbar-color: var(--note-fg-line, rgba(0, 0, 0, 0.25)) transparent;
+}
+
+.editor::placeholder {
+  color: var(--note-fg-soft, rgba(0, 0, 0, 0.38));
+}
+
+.editor::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.editor::-webkit-scrollbar-thumb {
+  background: var(--note-fg-line, rgba(0, 0, 0, 0.22));
+  border-radius: 4px;
+}
+
+.editor::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ------------------------------------------------------------ 截图便签 */
+
+.shot {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  overflow: auto;
+}
+
+.shot-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.shot-empty {
+  margin: 0;
+  padding: 12px;
+  font-size: 12px;
+  color: var(--note-fg-soft, rgba(0, 0, 0, 0.5));
+  user-select: text;
+  text-align: center;
+  word-break: break-all;
+}
+
+/* --------------------------------------------------------- 缩放握把 */
+
+.grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  z-index: 4;
+  cursor: nwse-resize;
+  -webkit-app-region: no-drag;
+  touch-action: none;
+}
+
+.grip::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 14px 14px;
+  border-color: transparent transparent var(--note-grip, rgba(0, 0, 0, 0.26)) transparent;
+}
+
+.grip:hover::before {
+  border-bottom-color: var(--note-grip-strong, rgba(0, 0, 0, 0.45));
+}
+
+/* --------------------------------------------------------------- 提示 */
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 7px;
+  z-index: 5;
+  max-width: calc(100% - 12px);
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(24, 24, 24, 0.8);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 6px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.toast.error {
+  background: rgba(184, 42, 34, 0.92);
+}
+
+/* 拖动 / 缩放进行中：关掉选中与光标干扰 */
+body.gesture-active {
+  cursor: move;
+}
+
+body.gesture-active .editor,
+body.gesture-active .title-input {
+  user-select: none;
+}

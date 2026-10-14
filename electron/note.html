@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      便签窗口页面（契约 §5）。载体是 frame:false + transparent:true 的无边框透明窗口，
+      整页背景必须透明（见 note.css），圆角与阴影由 .note 容器自身绘制。
+      页面只用 100vw/100vh 自适应，宽高完全由主进程控制。
+      资源均列了 'self' 与 file: 两种来源，无论主进程用 loadFile(file://)
+      还是同源 http 加载都能取到本地资源。
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; font-src 'self' file: data:"
+    />
+    <title>便签</title>
+    <link rel="stylesheet" href="note.css" />
+  </head>
+  <body class="kind-text">
+    <div class="note" id="app">
+      <!-- 底层：只承担背景色与透明度，文字层保持不透明，保证可读性 -->
+      <div class="note-bg" id="bg"></div>
+
+      <!-- 自绘标题栏（约 28px）：左侧类型标记 + 标题 + 右侧按钮，同时是拖动把手 -->
+      <header class="titlebar" id="titlebar">
+        <span class="kind" id="kind-mark" title="文本便签">
+          <span class="kind-dot"></span>
+        </span>
+        <!-- 草稿标记：快捷键新建的便签在点「保存」之前不会进便签列表，必须让这件事可见。 -->
+        <span class="draft" id="draft-mark" title="尚未保存，点「保存」后才会出现在便签列表里" hidden>未保存</span>
+        <input
+          class="title-input"
+          id="title-input"
+          type="text"
+          maxlength="120"
+          placeholder="标题"
+          spellcheck="false"
+          autocomplete="off"
+          title="点击可编辑标题"
+        />
+        <nav class="actions">
+          <button type="button" class="tb-btn" id="btn-save" data-act="save" title="保存（Ctrl+S）">保存</button>
+          <button type="button" class="tb-btn" id="btn-export" data-act="export" title="把截图另存为 PNG" hidden>另存</button>
+          <button type="button" class="tb-btn" id="btn-hide" data-act="hide" title="保留在屏幕上：不再吸附到边缘，也不会自动隐藏">保留</button>
+          <button type="button" class="tb-btn" id="btn-close" data-act="close" title="关闭窗口（保留内容）">关闭</button>
+          <button type="button" class="tb-btn danger" id="btn-delete" data-act="delete" title="删除这条便签（不可恢复）">删除</button>
+        </nav>
+      </header>
+
+      <!-- preload 不可用时的降级提示：只占一条，不遮挡正文 -->
+      <p class="fallback" id="fallback" hidden></p>
+
+      <main class="content" id="content">
+        <!-- 文本便签正文：可编辑、自动保存、内容超出时自己滚动 -->
+        <textarea
+          class="editor"
+          id="editor"
+          spellcheck="false"
+          placeholder="在这里输入内容，停笔 0.6 秒自动保存…"
+          aria-label="便签正文"
+        ></textarea>
+
+        <!-- 截图便签：用 file:// 加载 note.image 指向的 PNG -->
+        <div class="shot" id="shot-pane" hidden>
+          <img class="shot-img" id="shot-img" alt="截图便签内容" draggable="false" />
+          <p class="shot-empty" id="shot-empty" hidden></p>
+        </div>
+      </main>
+
+      <!-- 右下角 14px 三角握把：缩放窗口 -->
+      <div class="grip" id="grip" title="拖动缩放" aria-hidden="true"></div>
+
+      <!-- 非阻塞提示（已保存 / 出错），绝不使用 alert -->
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+
+    <script src="note.js"></script>
+  </body>
+</html>

@@ -1,0 +1,152 @@
+/**
+ * Styles for the 便签闹钟 popup.
+ *
+ * The window is frameless and transparent, so the card draws its own background and
+ * border. It is meant to be noticed: a warm accent bar, a large body, and one obvious
+ * 关闭 button.
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Segoe UI", system-ui,
+    sans-serif;
+  font-size: 14px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.card {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  background: rgba(28, 28, 32, 0.98);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  color: #f4f4f5;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------- 标题栏 */
+
+.bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px 9px 12px;
+  background: linear-gradient(180deg, rgba(255, 176, 32, 0.26), rgba(255, 176, 32, 0.1));
+  border-bottom: 1px solid rgba(255, 176, 32, 0.32);
+  /* Matches the note window: the bar is the drag handle. */
+  -webkit-app-region: drag;
+}
+
+.bell {
+  flex: 0 0 auto;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.close {
+  flex: 0 0 auto;
+  -webkit-app-region: no-drag;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+  border-radius: 6px;
+  padding: 3px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.close:focus-visible {
+  outline: 2px solid rgba(255, 176, 32, 0.85);
+  outline-offset: 1px;
+}
+
+/* --------------------------------------------------------------- 正文 */
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  overflow: auto;
+}
+
+.text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  user-select: text;
+}
+
+/* A caption under an image is secondary information. */
+.text.caption {
+  font-size: 12px;
+  opacity: 0.72;
+}
+
+.image {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* --------------------------------------------------------------- 脚注 */
+
+.foot {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  opacity: 0.6;
+  text-align: center;
+}
+
+/* --------------------------------------------------------- 降级提示条 */
+
+.fallback {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  margin: 0;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: rgba(248, 81, 73, 0.94);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+}
