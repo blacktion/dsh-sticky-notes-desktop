@@ -1,9 +1,17 @@
 {
   "name": "dsh-sticky-notes-desktop",
   "version": "0.1.0",
-  "description": "Sticky notes + screenshot annotations for DeepSeek Harness. Real always-on-top desktop windows (own Electron helper), edge snapping with auto-hide, click-through-safe mouse proximity reveal, a sidebar notes list, 便签闹钟 reminders, and a dedicated settings page for hotkeys and appearance.",
+  "description": "Always-on-top desktop sticky notes for DeepSeek Harness: real OS windows, edge snapping that hides and reveals on hover, screenshot annotation, one-time and repeating note alarms.",
   "type": "module",
   "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blacktion/dsh-sticky-notes-desktop.git"
+  },
+  "homepage": "https://github.com/blacktion/dsh-sticky-notes-desktop#readme",
+  "bugs": {
+    "url": "https://github.com/blacktion/dsh-sticky-notes-desktop/issues"
+  },
   "exports": {
     ".": {
       "default": "./lib/index.js"
