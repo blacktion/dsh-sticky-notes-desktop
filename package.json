@@ -35,10 +35,12 @@
   "scripts": {
     "build": "node tools/build-client.mjs",
     "prepack": "node tools/build-client.mjs --check",
-    "test": "node tools/test-geometry.mjs && node tools/test-alarm-schedule.mjs && node tools/test-package.mjs && node tools/check-readme-links.mjs && node tools/build-client.mjs --check && node tools/test-client-load.mjs && node tools/test-tool-registration.mjs && node tools/check-tool-schemas.mjs && node tools/test-electron-helper.mjs && node tools/test-popup.mjs && node tools/test-popup-appearance.mjs && node tools/test-shot-actions.mjs && node tools/test-hide-modes.mjs && node tools/test-alarm-ring.mjs && node tools/test-note-appearance.mjs && node tools/test-helper-service.mjs && node tools/test-bridge.mjs",
+    "test": "node tools/test-geometry.mjs && node tools/test-alarm-schedule.mjs && node tools/test-package.mjs && node tools/check-readme-links.mjs && node tools/build-client.mjs --check && node tools/test-client-load.mjs && node tools/test-tool-registration.mjs && node tools/check-tool-schemas.mjs && node tools/check-swatch-css.mjs && node tools/test-version.mjs && node tools/test-electron-helper.mjs && node tools/test-popup.mjs && node tools/test-popup-appearance.mjs && node tools/test-shot-actions.mjs && node tools/test-hide-modes.mjs && node tools/test-alarm-ring.mjs && node tools/test-note-appearance.mjs && node tools/test-helper-service.mjs && node tools/test-bridge.mjs",
     "check": "node tools/build-client.mjs --check",
     "check:readme": "node tools/check-readme-links.mjs",
     "check:schemas": "node tools/check-tool-schemas.mjs",
+    "check:swatches": "node tools/check-swatch-css.mjs",
+    "test:version": "node tools/test-version.mjs",
     "test:geometry": "node tools/test-geometry.mjs",
     "test:alarm-schedule": "node tools/test-alarm-schedule.mjs",
     "test:alarm-ring": "node tools/test-alarm-ring.mjs",

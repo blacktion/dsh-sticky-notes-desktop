@@ -1,0 +1,20 @@
+# Keep the repository's line endings stable across machines.
+#
+# Without this, Git converts LF to CRLF on checkout for anyone with `core.autocrlf=true` (the Windows
+# default in many installs). Nothing breaks, but every file then shows as fully rewritten after a
+# round trip, which buries real changes in noise.
+#
+# `eol=lf` for text normalises the working tree to LF everywhere, so the bytes here match the bytes in
+# the npm tarball.
+* text=auto eol=lf
+
+# Binary assets must never be touched, or their bytes change and they stop being valid images.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+
+# Git's own internals.
+.gitattributes -text

@@ -181,7 +181,20 @@ body {
   background: var(--bar-line);
 }
 
-#toolbar button {
+/*
+ * Every generic button rule below excludes `.swatch`.
+ *
+ * A colour swatch's whole job is to *show its colour*, so nothing may paint over it — the selected and
+ * hover indicators have to be a ring around it. But `#toolbar button.active` is (1,1,1) specificity
+ * while `#toolbar .swatch` is (1,1,0), so the generic "active button = accent blue" rule won the
+ * cascade and the selected swatch rendered blue instead of its own colour. The `:not(.swatch)` guards
+ * stop that, and they are preferable to out-specifying the generic rules (e.g. `#toolbar button.swatch
+ * .active`), because a future restyle of the toolbar buttons would silently reintroduce the bug.
+ *
+ * The same applies to `:hover` and `:active` for the identical reason: they used to wash a hovered
+ * swatch in translucent white, so you could not see the colour you were about to pick.
+ */
+#toolbar button:not(.swatch) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -199,15 +212,15 @@ body {
   cursor: pointer;
 }
 
-#toolbar button:hover:not(:disabled) {
+#toolbar button:hover:not(:disabled):not(.swatch) {
   background: rgba(255, 255, 255, 0.2);
 }
 
-#toolbar button:active:not(:disabled) {
+#toolbar button:active:not(:disabled):not(.swatch) {
   background: rgba(255, 255, 255, 0.3);
 }
 
-#toolbar button.active {
+#toolbar button.active:not(.swatch) {
   background: var(--accent);
   color: #ffffff;
 }
@@ -217,13 +230,13 @@ body {
   cursor: default;
 }
 
-#toolbar button.primary {
+#toolbar button.primary:not(.swatch) {
   background: var(--accent);
   color: #ffffff;
   font-weight: 600;
 }
 
-#toolbar button.primary:hover:not(:disabled) {
+#toolbar button.primary:hover:not(:disabled):not(.swatch) {
   background: #3a9bff;
 }
 
@@ -252,9 +265,34 @@ body {
   background: var(--c);
 }
 
+/*
+ * Hover and selected are both circles **around** the swatch — never a fill over it.
+ *
+ * `outline` rather than `border` or `box-shadow` because outline paints outside the box and cannot
+ * affect the element's own background, which is the entire requirement here. The active ring is
+ * brighter and sits further out than the hover ring, so "about to pick" and "already picked" stay
+ * distinguishable without either one hiding the colour.
+ *
+ * `box-shadow` adds a second, dark ring outside the light one. Without it a white or near-white
+ * swatch would have a white ring on a light toolbar and read as borderless.
+ */
+#toolbar .swatch:hover:not(:disabled) {
+  outline: 2px solid rgba(255, 255, 255, 0.75);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.45);
+}
+
 #toolbar .swatch.active {
-  outline: 2px solid #ffffff;
-  outline-offset: 1px;
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(0, 0, 0, 0.55);
+}
+
+/* The selected swatch keeps its active ring even while the pointer is over it. */
+#toolbar .swatch.active:hover:not(:disabled) {
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(0, 0, 0, 0.55);
 }
 
 #toolbar .wbtn {
