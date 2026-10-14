@@ -56,7 +56,6 @@
     "test:hide-modes": "node tools/test-hide-modes.mjs",
     "test:appearance": "node tools/test-note-appearance.mjs",
     "test:render": "node tools/render-note.mjs",
-    "test:probe-hotkey": "node tools/probe-hotkey.mjs",
     "test:bridge": "node tools/test-helper-service.mjs && node tools/test-bridge.mjs",
     "test:live": "node tools/test-live.mjs",
     "test:ui": "node tools/test-ui.mjs"

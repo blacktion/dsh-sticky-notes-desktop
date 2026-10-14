@@ -147,3 +147,19 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# ---------------------------------------------------------------------------
+# Local development tools, deliberately NOT part of the published plugin.
+#
+# The local working copy keeps some helpers that have nothing to do with the
+# plugin itself (screen-recording control, input-injection probes, the demo
+# recording script). They live in ../devtools so a sync from the working copy
+# cannot copy them in, and these entries are a second line of defence in case
+# something is ever dropped into tools/ by hand.
+#
+# Nothing matching these patterns is imported by lib/ or electron/, so a fresh
+# clone does not need them: `npm test` and `npm run build` both pass without.
+# ---------------------------------------------------------------------------
+tools/obs.mjs
+tools/probe-*.mjs
+docs/录制脚本.md
