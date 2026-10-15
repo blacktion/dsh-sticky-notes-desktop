@@ -157,32 +157,46 @@ node tools/test-service-ui.mjs <port> <token> <cdpPort>
 | `tools/verify-install.mjs <profile目录> <包名>` | 已安装的 bundle 能否解析与加载：包名、`dsh.bundle.patch`、补丁里的 `name`、`exports["./client"]`，以及真的 import 并跑 `apply`。**改名/重装后最先该跑的就是它** —— 这几种不一致都会表现成一句 `failed to import`，不告诉你是哪个字符串错了 |
 | `tools/read-installed-name.mjs <profile目录> <包名>` | 已安装的 bundle 会显示成什么名字，从 `node_modules` 里那份浏览器 bundle 读出。`link:` 安装时它和仓库是同一份文件，`.tgz` 安装时不是 —— 发布形态要用它确认 |
 
-`CONTRACT.md` 是模块间的冻结接口（含 TCP 协议与 IPC 通道表），改协议前先改它。
-
 ## 发布
 
-这个包**还没发布到 npm**。要发布：
+已发布为 [`dsh-sticky-notes-desktop`](https://www.npmjs.com/package/dsh-sticky-notes-desktop)。别人用
+`install_bundle("dsh-sticky-notes-desktop")` 一行就能装上。
+
+发新版本的流程：
 
 ```bash
-npm publish     # 在本目录执行，需要 npm 账号
+npm version patch|minor|major   # 改 package.json 并给提交打 tag
+git push --follow-tags
+npm publish
+npm view dsh-sticky-notes-desktop version   # 确认真正落地的是哪个版本
 ```
 
-之后别人就能用 `install_bundle("dsh-sticky-notes-desktop")` 一行装上。
+这个包的发布有三件事容易搞错：
+
+1. **`prepack` 是安全网，不是形式。** 它跑 `build-client.mjs --check`，一旦
+   `lib/client.bundle.js` 比它所依赖的 `lib/ui/*.js` 旧就会失败。**永远不要用 `--ignore-scripts`
+   发布** —— 那个参数会把一个过期的 bundle 变成发出去的 bug。
+2. **版本号是永久的。** 一旦发布，即使 `npm unpublish` 之后也**永远不能复用**，所以先跑
+   `npm publish --dry-run` 再决定用哪个号。
+3. **registry 入库是异步的。** `npm publish` 可能返回 *"Your package is being processed"*，而此时
+   `npm view` 还是旧状态；若是全新的包名，期间还会短暂显示一个 `0.0.0-stage` 占位版本，那是 npm
+   在占住这个名字。这是 npm 的分阶段发布机制，**不是发布失败、也不是被人抢注**。等一会儿再查
+   registry，不要在那一刻下结论。
 
 几条相关事实，都是读 DSH 的插件管理器确认的：
 
-- `dsh.bundle.patch` 是**唯一**必需的清单字段；`private: true` 不影响。
-- `install_bundle` 接受绝对目录、绝对 `.tgz`、git 地址、或 registry 包名。**相对路径会被拒绝。**
-- `files` 只对 `.tgz`／npm 安装有意义。`link:` 安装是软链接到源码目录，所以漏在 `files` 外的文件
-  **本地照跑、别人装上就缺** —— `test-package.mjs` 会从代码推导运行期用到的资产并逐个核对 `files`，
-  就是为了这个。
-- 不带任何生命周期脚本，所以永远不需要 `approvedBuilds`。
-- 没有声明任何 `@deepseek-ai/dsh-*` peer，所以安装时的兼容性检查没有东西可拒。
-- 插件列表卡片的标题是 `locale/zh.json` 里的字面量，因为 DSH 在**任何插件代码运行之前**就读那个
-  JSON。它是改名时唯一需要手改的字符串。
+1. `dsh.bundle.patch` 是**唯一**必需的清单字段；`private: true` 不影响。
+2. `install_bundle` 接受绝对目录、绝对 `.tgz`、git 地址、或 registry 包名。**相对路径会被拒绝。**
+3. `files` 只对 `.tgz`／npm 安装有意义。`link:` 安装是软链接到源码目录，所以漏在 `files` 外的文件
+   **本地照跑、别人装上就缺** —— `test-package.mjs` 会从代码推导运行期用到的资产并逐个核对 `files`，
+   就是为了这个。
+4. 不带任何生命周期脚本，所以永远不需要 `approvedBuilds`。
+5. 没有声明任何 `@deepseek-ai/dsh-*` peer，所以安装时的兼容性检查没有东西可拒。
+6. 插件列表卡片的标题是 `locale/zh.json` 里的字面量，因为 DSH 在**任何插件代码运行之前**就读那个
+   JSON。它是改名时唯一需要手改的字符串。
 
-`docs/` 里有两张截图（`editor.png`、`panel.png`）已经不再被任何一份 README 引用，但依然会被发布 ——
-因为 `files` 列的是整个目录。要去掉它们就得删文件本身。
+`docs/` 里只放两份 README 真正会显示的截图。因为 `files` 列的是整个目录，往里丢任何图都会跟着发布 ——
+不管有没有被引用。所以没用的图直接删掉，不留着。
 
 ## 许可
 

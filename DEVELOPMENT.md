@@ -171,36 +171,49 @@ Two tools verify an **installed** copy rather than this checkout:
 | `tools/verify-install.mjs <profileDir> <packageName>` | Whether an installed bundle resolves and loads: the package name, `dsh.bundle.patch`, the patch's own `name`, `exports["./client"]`, and a real `import` plus `apply`. **Run this first after a rename or reinstall** — every one of those mismatches surfaces as a bare `failed to import` that does not say which string is wrong |
 | `tools/read-installed-name.mjs <profileDir> <packageName>` | What name an installed bundle will actually show, read from the browser bundle in `node_modules`. With a `link:` install that is this same file; with a `.tgz` install it is not, so use it to confirm a distribution build |
 
-`CONTRACT.md` is the frozen interface between modules (including the TCP protocol and the IPC channel
-table); change it before changing a protocol.
-
 ## Publishing
 
-The package is **not on npm yet**. To publish:
+Published as [`dsh-sticky-notes-desktop`](https://www.npmjs.com/package/dsh-sticky-notes-desktop). Anyone
+installs it with `install_bundle("dsh-sticky-notes-desktop")`.
+
+The workflow for a new version:
 
 ```bash
-npm publish     # from this directory; needs an npm account
+npm version patch|minor|major   # bumps package.json and tags the commit
+git push --follow-tags
+npm publish
+npm view dsh-sticky-notes-desktop version   # confirm what actually landed
 ```
 
-Then anyone can install it with `install_bundle("dsh-sticky-notes-desktop")`.
+Three things about publishing this package that are easy to get wrong:
+
+1. **`prepack` is a safety net, not a formality.** It runs `build-client.mjs --check`, which fails if
+   `lib/client.bundle.js` is older than the `lib/ui/*.js` sources it is built from. Never publish with
+   `--ignore-scripts`; that flag turns a stale bundle into a shipped bug.
+2. **A version number is permanent.** Once a version is published it can never be reused, even after
+   `npm unpublish`, so check with `npm publish --dry-run` before committing to one.
+3. **Registry ingestion is asynchronous.** `npm publish` can return *"Your package is being processed"*
+   while `npm view` still shows the previous state — and for a brand-new package name it briefly shows
+   a `0.0.0-stage` placeholder while npm reserves the name. This is npm's staged-publishing mechanism,
+   not a failed or hijacked publish. Wait, then check the registry again before concluding anything.
 
 Relevant facts, all established by reading DSH's plugin manager:
 
-- `dsh.bundle.patch` is the **only** required manifest field; `private: true` is fine.
-- `install_bundle` accepts an absolute directory, an absolute `.tgz`, a git URL, or a registry name.
-  Relative paths are refused.
-- `files` matters only for `.tgz`/npm installs. A `link:` install symlinks the source directory, so a
-  file left out of `files` works locally and is missing for everyone else — `test-package.mjs` derives
-  the reachable asset set from the code and checks it against `files` for exactly this reason.
-- No lifecycle scripts ship, so `approvedBuilds` is never needed.
-- The plugin declares no `@deepseek-ai/dsh-*` peers, so the install-time compatibility check has
-  nothing to reject.
-- The plugin-list card title is a literal in `locale/zh.json`, because DSH reads that JSON before any
-  plugin code runs. It is the one string a rename must be edited by hand.
+1. `dsh.bundle.patch` is the **only** required manifest field; `private: true` is fine.
+2. `install_bundle` accepts an absolute directory, an absolute `.tgz`, a git URL, or a registry name.
+   Relative paths are refused.
+3. `files` matters only for `.tgz`/npm installs. A `link:` install symlinks the source directory, so a
+   file left out of `files` works locally and is missing for everyone else — `test-package.mjs` derives
+   the reachable asset set from the code and checks it against `files` for exactly this reason.
+4. No lifecycle scripts ship, so `approvedBuilds` is never needed.
+5. The plugin declares no `@deepseek-ai/dsh-*` peers, so the install-time compatibility check has
+   nothing to reject.
+6. The plugin-list card title is a literal in `locale/zh.json`, because DSH reads that JSON before any
+   plugin code runs. It is the one string a rename must be edited by hand.
 
-Two screenshots in `docs/` (`editor.png`, `panel.png`) are no longer referenced by either README but
-are still published, because `files` lists the directory as a whole. Removing them means deleting the
-files.
+`docs/` holds only screenshots the READMEs actually display. Because `files` lists the directory as a
+whole, any image dropped in there ships whether or not anything references it, so unused ones are
+deleted rather than left behind.
 
 ## License
 

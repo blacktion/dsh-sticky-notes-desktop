@@ -90,7 +90,7 @@ plugin_manager(action="install_bundle", target="<那个 .tgz 的绝对路径>")
 plugin_manager(action="install_bundle", target="dsh-sticky-notes-desktop")
 ```
 
-> **还没发布到 npm** —— 暂时请用上面两种方式。
+包名就是 [`dsh-sticky-notes-desktop`](https://www.npmjs.com/package/dsh-sticky-notes-desktop)，这是最省事的方式：不用克隆仓库，也不用自己打包。
 
 然后**重启 DSH**：profile 的 bundle 列表只在启动时读取。
 

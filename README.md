@@ -90,7 +90,7 @@ The tarball is copied into the profile rather than linked, so it works on other 
 plugin_manager(action="install_bundle", target="dsh-sticky-notes-desktop")
 ```
 
-> **Not published to npm yet** — use one of the two options above for now.
+The package is [`dsh-sticky-notes-desktop`](https://www.npmjs.com/package/dsh-sticky-notes-desktop) — the easiest route, since it needs neither a clone nor a local `npm pack`.
 
 Then **restart DSH**: a profile's bundle list is only read at startup.
 
