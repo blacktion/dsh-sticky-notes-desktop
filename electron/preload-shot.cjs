@@ -1,7 +1,8 @@
 /**
  * dsh-sticky-notes — 截图选区 / 标注窗口 preload。
  *
- * CONTRACT.md 第 5 节「截图选区/标注窗口」把通道名冻结成下面 4 条，
+ * 截图选区 / 标注窗口的 4 条 IPC 通道已冻结成下面这样 —— 这张表就是它们唯一的文档，
+ * 改通道名要三处同步（本文件、`main.mjs`、渲染页面），漏一处就静默失联。
  * 本文件是渲染层唯一能碰到 ipcRenderer 的地方：
  *
  *   shot:init    renderer→main  null                                   → { dataUrl, width, height, scaleFactor, mode }

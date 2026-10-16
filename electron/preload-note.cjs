@@ -1,13 +1,14 @@
 /**
  * dsh-sticky-notes — 便签窗口 preload。
  *
- * 契约：CONTRACT.md §5「便签窗口」。**通道名已冻结，本文件不做任何改名。**
+ * 契约：便签窗口的 IPC 通道名已冻结，本文件不做任何改名。这些名字是 preload、主进程
+ * （`main.mjs`）与渲染页面三方共用的字符串，改一处而漏一处就会静默失联。
  *
  * 运行环境：Electron 渲染进程，contextIsolation: true / nodeIntegration: false /
  * 已开启 --enable-sandbox。所以这里只做两件事：
  *
  *   1. require('electron') 取 contextBridge + ipcRenderer（沙箱 preload 允许）；
- *   2. 把契约表格里的**全部**通道包装成 window.sticky 一个对象暴露给页面。
+ *   2. 把**全部**通道包装成 window.sticky 一个对象暴露给页面。
  *
  * 主进程侧的对应要求（供 main.cjs 对齐）：
  *

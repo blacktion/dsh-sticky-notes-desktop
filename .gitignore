@@ -154,3 +154,9 @@ vite.config.ts.timestamp-*
 tools/obs.mjs
 tools/probe-*.mjs
 docs/录制脚本.md
+
+# The release log is deliberately local: it tracks what each version changed for
+# the person cutting the release, and is not part of the shipped plugin. Guarded
+# here in case one is ever dropped into the repo root by hand.
+CHANGELOG.md
+CHANGELOG.zh.md
