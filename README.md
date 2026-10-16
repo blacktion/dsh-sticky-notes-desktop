@@ -17,7 +17,7 @@ The sidebar entry reads **便签**; the panel has two tabs, **便签** / **便�
 
 ![The notes panel](docs/panel-with-note.png)
 
-"Settings → **便签设置**" is its own page — hotkey recording, colours, opacity, font size, snap and hide behaviour, service status, with a live preview:
+"Settings → **便签设置**" is its own page — hotkey recording, colours, opacity, font size, snap and hide behaviour, service status, the installed version and whether a newer one exists, with a live preview:
 
 ![Sticky-notes settings](docs/settings.png)
 
