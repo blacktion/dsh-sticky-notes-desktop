@@ -20,6 +20,28 @@ const ROOT = resolve(HERE, '..');
 
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 
+// ------------------------------------------------------- default note size ==
+//
+// `electron/note.js` runs as a plain classic script in a sandboxed renderer, so it cannot import the
+// shared constants — it has to spell the default size out. That is a real duplication, and a duplication
+// with no test is a duplication that drifts. This is the test.
+{
+  const geometry = await import(pathToFileURL(resolve(ROOT, 'lib/host/geometry.js')).href);
+  const noteSource = readFileSync(resolve(ROOT, 'electron/note.js'), 'utf8');
+  const match = noteSource.match(/const DEFAULT_NOTE = \{[\s\S]*?width:\s*(\d+),\s*\n\s*height:\s*(\d+),/);
+  assert.ok(match !== null, 'electron/note.js 里应能找到 DEFAULT_NOTE 的 width/height');
+  assert.equal(
+    Number(match[1]),
+    geometry.DEFAULT_NOTE_WIDTH,
+    `note.js 的默认宽度 ${match[1]} 与 geometry.js 的 ${geometry.DEFAULT_NOTE_WIDTH} 不一致`,
+  );
+  assert.equal(
+    Number(match[2]),
+    geometry.DEFAULT_NOTE_HEIGHT,
+    `note.js 的默认高度 ${match[2]} 与 geometry.js 的 ${geometry.DEFAULT_NOTE_HEIGHT} 不一致`,
+  );
+}
+
 // ------------------------------------------------------------- manifest ==
 
 assert.equal(pkg.name, 'dsh-sticky-notes-desktop', 'name 必须与 cordis.patch.yml 的 name 一致');

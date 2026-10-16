@@ -36,7 +36,9 @@
     text: '',
     x: 0,
     y: 0,
-    width: 260,
+    // Must match DEFAULT_NOTE_WIDTH / DEFAULT_NOTE_HEIGHT in lib/host/geometry.js. This file is a plain
+    // classic script with no imports, so the value is duplicated here by necessity — keep the two in step.
+    width: 300,
     height: 200,
     hidden: false,
     edge: null,
@@ -133,6 +135,56 @@
     const a = clampNumber(alpha, 0, 1, 1);
     if (rgb === null) return 'rgba(0,0,0,' + a + ')';
     return 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + a + ')';
+  }
+
+  /**
+   * 便签按钮上文字用哪个颜色 —— 只返回纯白或纯黑。
+   *
+   * 便签窗口的按钮文字以前是 `color: inherit`，也就是跟着用户配的正文颜色走。这在一张黑便签上配
+   * 深色正文时，标题栏按钮就看不见了 —— 而按钮是**操作控件**，可读性不能交给一个装饰性设置。
+   *
+   * 便签背景是半透明的，压什么东西上面由用户桌面决定。所以这里对**纯白和纯黑两种极端底色**各算一次
+   * 对比度，取「较差的那一次更好」的那个墨色 —— 保证无论背后是什么，都至少有一个可接受的下限。
+   * 只看一个中间假设值的话，浅色桌面下就会选错。
+   *
+   * @param {string} color  便签背景色
+   * @param {number} opacity 背景层不透明度
+   * @returns {'#ffffff'|'#111111'}
+   */
+  function inkForNote(color, opacity) {
+    const LIGHT = '#ffffff';
+    const DARK = '#111111';
+    const rgb = parseColor(color);
+    if (rgb === null) return LIGHT;
+
+    const alpha = clampNumber(opacity, 0, 1, 1);
+    /** sRGB 相对亮度，WCAG 定义。 */
+    const luminance = (r, g, b) => {
+      const channel = (v) => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+      };
+      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    };
+    /** 便签色按 alpha 压在给定底色上之后的实际颜色。 */
+    const over = (back) => {
+      const mix = (i) => rgb[i] * alpha + back * (1 - alpha);
+      return luminance(mix(0), mix(1), mix(2));
+    };
+    const ratio = (a, b) => {
+      const hi = Math.max(a, b);
+      const lo = Math.min(a, b);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+
+    const white = luminance(255, 255, 255);
+    const dark = luminance(17, 17, 17);
+
+    // 两种底色各算一次；取两次里"更差的那个"作为该墨色的保证值。
+    const whiteWorst = Math.min(ratio(white, over(255)), ratio(white, over(0)));
+    const darkWorst = Math.min(ratio(dark, over(255)), ratio(dark, over(0)));
+
+    return darkWorst >= whiteWorst ? DARK : LIGHT;
   }
 
   /** 只编码文件名里真正需要转义的字符（保留路径分隔符与冒号）。 */
@@ -279,12 +331,38 @@
     root.style.setProperty('--note-fg', textColor);
     root.style.setProperty('--note-fg-soft', withAlpha(textColor, 0.4));
     root.style.setProperty('--note-fg-line', withAlpha(textColor, 0.22));
-    root.style.setProperty('--note-btn-bg', withAlpha(textColor, 0.1));
-    root.style.setProperty('--note-btn-bg-hover', withAlpha(textColor, 0.24));
     root.style.setProperty('--note-grip', withAlpha(textColor, 0.28));
     root.style.setProperty('--note-grip-strong', withAlpha(textColor, 0.5));
     root.style.setProperty('--note-bg-color', color);
     root.style.setProperty('--note-bar-bg', withAlpha(color, 0.35));
+
+    // The toolbar's controls get their own ink and tints, derived from the note's *background* rather
+    // than from the configured text colour.
+    //
+    // Buttons are controls: their legibility must not depend on a decorative setting. Deriving their
+    // tints from the same ink also keeps the button readable as a whole — a dark tint under white text
+    // is legible, but a white tint under white text is not.
+    const ink = inkForNote(color, opacity);
+    root.style.setProperty('--note-ink', ink);
+    root.style.setProperty('--note-btn-bg', withAlpha(ink, 0.12));
+    root.style.setProperty('--note-btn-bg-hover', withAlpha(ink, 0.26));
+    root.style.setProperty('--note-ink-line', withAlpha(ink, 0.35));
+
+    // Secondary furniture — the type mark, the title-bar divider, placeholder text and the scrollbar —
+    // uses the same ink at lower alphas instead of the configured text colour.
+    //
+    // These are not content, so they must not vanish when the body colour happens to match the note.
+    // They are also not controls, so they should not compete with the buttons: below the pure-white or
+    // pure-black button labels, but still clearly visible. One ink plus alphas keeps everything a single
+    // family.
+    //
+    // The alphas are measured, not guessed. A first attempt at 0.45–0.55 came out at 1.5–2.5:1 for the
+    // divider on a light note, and the divider is drawn on the title bar's own overlay rather than on the
+    // note — which costs about a third of the contrast. 0.66 is where every palette clears 2.5:1 against
+    // the surface each element is actually painted on.
+    root.style.setProperty('--note-ink-strong', withAlpha(ink, 0.8));
+    root.style.setProperty('--note-ink-soft', withAlpha(ink, 0.6));
+    root.style.setProperty('--note-ink-line-soft', withAlpha(ink, 0.66));
 
     if (dom.editor) dom.editor.style.fontSize = fontSize + 'px';
     if (dom.titleInput) dom.titleInput.style.fontSize = Math.max(10, Math.round(fontSize * 0.86)) + 'px';
@@ -598,8 +676,24 @@
     endGesture();
   }
 
-  function onWindowBlur() {
-    // 窗口失去焦点时指针事件可能不再送达，直接结束手势，避免卡在"拖动中"。
+  /**
+   * Window focus was lost mid-gesture.
+   *
+   * The original reason for this handler stands: if the window loses focus, pointer events can stop
+   * arriving, and a gesture left open would strand the note in "dragging" state.
+   *
+   * But ending the gesture on *any* blur was too broad, and it is what made the first drag after
+   * typing do nothing. Pressing the title bar while the body still holds focus moves focus out of the
+   * input, and the window can report a blur as part of that hand-off — so the gesture was torn down
+   * before the pointer had moved far enough to be recognised, and the note only started moving on a
+   * second attempt, once there was no focus left to lose.
+   *
+   * The pointer's own button state says whether the drag is genuinely over, so that is what decides:
+   * a blur with the primary button still held is a focus change, not a released pointer.
+   */
+  function onWindowBlur(event) {
+    const buttons = event === undefined || event === null ? undefined : event.buttons;
+    if (typeof buttons === 'number' && (buttons & 1) !== 0) return;
     endGesture();
   }
 
@@ -611,6 +705,23 @@
   function beginGesture(event, options) {
     if (gesture !== null) return;
     if (event.button !== 0) return;
+
+    /*
+     * Drop any text focus here, before the gesture exists.
+     *
+     * Otherwise the browser does it as the default action of this same press, i.e. *after* the gesture
+     * is live — and that focus hand-off is what can surface as a window blur and cancel the drag. Doing
+     * it first makes the focus change a separate, finished event, so the drag that follows is not
+     * racing it. It also matches what the user sees: pressing the title bar means "I am moving this",
+     * so the caret and any text selection should go away immediately rather than lingering.
+     */
+    try {
+      const active = document.activeElement;
+      if (active !== null && active !== document.body && typeof active.blur === 'function') active.blur();
+    } catch {
+      /* 忽略：失焦失败不应该阻止拖动 */
+    }
+
     const origin = readWindowBounds();
     gesture = {
       pointerId: event.pointerId,

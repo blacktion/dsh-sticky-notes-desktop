@@ -62,7 +62,33 @@ The sidebar entry reads **便签**; the panel has two tabs, **便签** / **便�
 
 ## Installation
 
-Install through DSH's plugin manager (`plugin_manager` → `install_bundle`).
+**The easy way — DSH's own plugin manager.** Open **插件**, press **添加插件**, type the package name, and
+press **安装**:
+
+![Adding the plugin in DSH](docs/install-dialog.png)
+
+```
+dsh-sticky-notes-desktop
+```
+
+That is all it takes — no clone, no terminal. The dialog accepts an npm package name, a GitHub repository
+address, or a local directory path.
+
+> The **安装源** selector above the warning is worth a look first: it defaults to the China mainland mirror,
+> which is the right choice there and the wrong one elsewhere. Switch it to the default registry if you are
+> not in China and the install is slow or fails.
+
+Then **restart DSH**: a profile's bundle list is only read at startup.
+
+The methods below do the same thing from the conversation side, for when you would rather not use the GUI.
+
+**From npm**
+
+```
+plugin_manager(action="install_bundle", target="dsh-sticky-notes-desktop")
+```
+
+The package is [`dsh-sticky-notes-desktop`](https://www.npmjs.com/package/dsh-sticky-notes-desktop) — the easiest route, since it needs neither a clone nor a local `npm pack`.
 
 **From this repository**
 
@@ -75,7 +101,7 @@ The path **must be absolute** (relative paths are refused). A local directory is
 **From a packed tarball**
 
 ```bash
-npm pack    # produces dsh-sticky-notes-desktop-0.1.0.tgz
+npm pack    # produces dsh-sticky-notes-desktop-<version>.tgz
 ```
 
 ```
@@ -83,16 +109,6 @@ plugin_manager(action="install_bundle", target="<absolute path to the .tgz>")
 ```
 
 The tarball is copied into the profile rather than linked, so it works on other machines.
-
-**From npm**
-
-```
-plugin_manager(action="install_bundle", target="dsh-sticky-notes-desktop")
-```
-
-The package is [`dsh-sticky-notes-desktop`](https://www.npmjs.com/package/dsh-sticky-notes-desktop) — the easiest route, since it needs neither a clone nor a local `npm pack`.
-
-Then **restart DSH**: a profile's bundle list is only read at startup.
 
 > `~/.dsh/profiles/desktop` is managed exclusively by the Electron application, and `dsh --profile desktop` is refused. Install through the in-app plugin manager, or edit that profile's `package.json` directly.
 
@@ -113,7 +129,13 @@ The default note is **black at 80% opacity with light text** (`#000000` / `0.8` 
 
 ![The default black note](docs/note-black.png)
 
-Colour, opacity and text colour are changed in "Settings → 便签设置"; changing the text colour automatically re-colours every foreground element.
+Colour, opacity and text colour are changed in "Settings → 便签设置".
+
+The **text colour** applies to the note's own content — its title and body. The toolbar's controls
+deliberately do **not** follow it: buttons, the type mark, the title-bar divider and the input hints
+take a colour derived from the note's **background** instead, so they stay legible whatever text colour
+you choose. Pick a dark text colour on a black note and the body becomes your business, but 「保存」 and
+「关闭」 remain readable.
 
 ---
 
@@ -168,6 +190,13 @@ The note's title bar has a **`保留`** button:
 - Press it → it becomes **`取消保留`** (highlighted), and that note **no longer snaps and never auto-hides** — it stays where you put it;
 - Press it again → normal behaviour returns.
 
+A kept-out note may also **hang past the left, right or bottom screen edge**, which is what makes "leave
+it exactly here" usable — a note parked half off the right edge is out of the way and still readable.
+
+- At least **40px stays on screen**, so it can always be grabbed again.
+- The **top edge is the exception**: it stays flush. The title bar is the only place a note can be dragged
+  from, so a note hanging off the top would push its own handle off screen and could never be moved back.
+
 The state is saved in `data.json` and survives a restart. The sidebar list offers the same button.
 
 ## Screenshots and annotation
@@ -221,6 +250,11 @@ Buttons: **启动服务** / **重启服务** / **停止服务** / **刷新状态
 | Auto-hide delay | How long a snapped note waits before hiding |
 | Reveal delay | How long after the mouse reaches the edge the note slides back |
 | Start with DSH | When off, the helper is no longer launched automatically |
+
+Below the settings, the page names the **installed version** and says whether a newer one is on npm:
+**update available vX.Y.Z** (click to check again) or **up to date**. Nothing is shown when the package was
+not installed from the registry — a local directory or a `.tgz` has no published counterpart to compare
+against — and a failed check stays silent too, since an offline machine should not be told off for it.
 
 > A note window **has no colour button of its own**: colour is a preference, and preferences live in one place — 便签设置. The title bar carries only Save / Keep out / Close / Delete (screenshot notes add "Save as").
 

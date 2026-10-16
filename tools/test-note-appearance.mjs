@@ -32,7 +32,7 @@ if (runtime === null) {
 }
 
 /** Must match the case table in `tools/render-note.mjs`. */
-const CASES = ['default-black', 'classic-yellow', 'blue'];
+const CASES = ['default-black', 'classic-yellow', 'blue', 'dark-ink-on-black'];
 
 const outDir = mkdtempSync(join(tmpdir(), 'sticky-appearance-'));
 const failures = [];

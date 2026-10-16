@@ -61,9 +61,12 @@ import {
   TAB_SPAN,
   TAB_THICKNESS,
   clampX,
+  clampPinned,
   clampY,
+  PINNED_OVERHANG,
   constrainSize,
   displayFor,
+  screenRectOf,
   hiddenBounds,
   placeNear,
   pointInRect,
@@ -1541,6 +1544,190 @@ check('500 组"随手乱拖"的便签：只要便签还有一部分可见，两�
     }
   }
   ok(hiddenCount > 100, `样本量应当足够（实际覆盖了 ${hiddenCount} 个"仍有可见部分"的隐藏场景）`);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+group('[10] screenRectOf —— 便签按物理屏幕定位，弹出层仍按工作区避让任务栏');
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A machine whose taskbar sits at the bottom, which is the case that exposed the bug.
+ *
+ * `bounds` and `workArea` differ only at the bottom, exactly as Windows reports them.
+ */
+const WITH_TASKBAR = {
+  bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+  workArea: { x: 0, y: 0, width: 1920, height: 1040 },
+};
+
+check('screenRectOf 返回 bounds（物理屏幕），不是 workArea', () => {
+  const rect = screenRectOf(WITH_TASKBAR);
+  eq(rect.height, 1080, '必须用屏幕高度 1080，而不是工作区高度 1040');
+  eq(rect.y + rect.height, 1080, '底边必须是屏幕底边 1080');
+});
+
+check('缺少 bounds 时退回 workArea，再退回 1920x1080 兜底，都不抛异常', () => {
+  const noBounds = noThrow(() => screenRectOf({ workArea: WA }), '缺少 bounds 不应抛异常');
+  deepEq(noBounds, WA, '没有 bounds 时必须退回 workArea');
+  const nothing = noThrow(() => screenRectOf({}), '空对象不应抛异常');
+  eq(nothing.width, 1920, '完全没有信息时用 1920x1080 兜底');
+  const undef = noThrow(() => screenRectOf(undefined), 'undefined 不应抛异常');
+  eq(undef.height, 1080, 'undefined 时用兜底高度');
+});
+
+check('向下吸附到物理屏幕底边（而非任务栏顶边）', () => {
+  const screen = screenRectOf(WITH_TASKBAR);
+  // 3px above the work-area bottom, i.e. as far down as the old boundary would let the user go while
+  // still snapping. Under the work area that is 3px from "the edge"; on screen it is 43px from it.
+  const note = { x: 500, y: 1040 - 200 - 3, width: 260, height: 200 };
+  eq(note.y + note.height, 1040 - 3, '前置条件：便签底部在任务栏顶边上方 3px');
+
+  const onWorkArea = snapToEdge(note, WITH_TASKBAR.workArea, 10);
+  eq(onWorkArea.edge, EDGE_BOTTOM, '按工作区算：吸附下边');
+  eq(onWorkArea.y, 840, '按工作区：y = 1040 - 200 = 840');
+  eq(onWorkArea.y + note.height, 1040, '按工作区：底部停在 1040，即任务栏上方，看起来悬空');
+
+  // A note near where the work area ends is nowhere near the screen's bottom edge, which is the whole
+  // point: on this machine the two boundaries are 40px apart.
+  const awayFromScreenEdge = snapToEdge(note, screen, 10);
+  eq(awayFromScreenEdge.edge, null, '按屏幕算：距真正的底边还有 43px，超出阈值，不应吸附');
+  eq(awayFromScreenEdge.y, note.y, '未吸附时坐标保持不变');
+
+  // Now genuinely near the physical bottom, and closer to it than to anything else.
+  const atBottom = { x: 500, y: 1080 - 200 - 4, width: 260, height: 200 };
+  const onScreen = snapToEdge(atBottom, screen, 10);
+  eq(onScreen.edge, EDGE_BOTTOM, '按屏幕算：贴近物理底边时吸附下边');
+  eq(onScreen.y, 880, '按屏幕：y = 1080 - 200 = 880');
+  eq(onScreen.y + atBottom.height, 1080, '按屏幕：便签底部贴住真正的屏幕底边');
+
+  // And the same note measured against the work area is *pulled back out*: it lies past the boundary,
+  // so `clampY` drags it up to sit on the taskbar again. That is the old behaviour in full — the note
+  // could not simply be left where it was; the boundary actively undid the placement.
+  const pulledBack = snapToEdge(atBottom, WITH_TASKBAR.workArea, 10);
+  eq(pulledBack.y, 840, '（对照）按工作区算会把便签向上拉回 840，即拉回任务栏上方');
+});
+
+check('向下隐藏到屏幕外（而非停在任务栏上）', () => {
+  const screen = screenRectOf(WITH_TASKBAR);
+  const note = { edge: EDGE_BOTTOM, x: 500, y: 880, width: 260, height: 200 };
+  const hidden = hiddenBounds(note, screen, HIDE_MODE_OFFSCREEN);
+  eq(hidden.y, 1080 - OFFSCREEN_SLIVER, 'offscreen：露出那 1px 必须落在屏幕底边 1080 上');
+  eq(hidden.y + hidden.height, 1080 - OFFSCREEN_SLIVER + 200, '整块便签被推到屏幕下沿之外');
+
+  const tabbed = hiddenBounds(note, screen, HIDE_MODE_TAB);
+  eq(tabbed.y + tabbed.height, 1080, 'tab：小标签贴住屏幕底边');
+});
+
+check('感应区覆盖屏幕底边 —— 否则便签藏下去就再也唤不回来', () => {
+  const screen = screenRectOf(WITH_TASKBAR);
+  const note = { edge: EDGE_BOTTOM, x: 500, y: 880, width: 260, height: 200 };
+
+  // The pointer reaches the physical bottom edge. With the work area the zone stopped at 1040, so
+  // these last 40px of screen belonged to no zone at all.
+  const zone = revealZone(note, screen, undefined, HIDE_MODE_OFFSCREEN);
+  ok(zone !== null, '感应区不应为 null');
+  eq(zone.y + zone.height, 1080, '感应区必须一直伸到屏幕底边 1080');
+  eq(pointInRect({ x: 600, y: 1075 }, zone), true, '屏幕最下沿 5px 内必须能触发唤回');
+
+  const workAreaZone = revealZone(note, WITH_TASKBAR.workArea, undefined, HIDE_MODE_OFFSCREEN);
+  eq(workAreaZone.y + workAreaZone.height, 1040, '（对照）按工作区算，感应区止步于任务栏顶边');
+  eq(pointInRect({ x: 600, y: 1075 }, workAreaZone), false, '（对照）那 40px 落在感应区之外，唤不回来');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+group('[11] clampPinned —— 「保留」的便签可以往左右和下挂出，但必须抓得回来');
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 一台 1920x1080 的屏幕，尺寸固定，便于核对具体像素。 */
+const PIN_SCREEN = { x: 0, y: 0, width: 1920, height: 1080 };
+const PIN_W = 260;
+const PIN_H = 200;
+
+check('向右拖超过边界：允许挂出，屏内仍留够 40px', () => {
+  const at = clampPinned(1700, 400, PIN_W, PIN_H, PIN_SCREEN);
+  eq(at.x, 1700, '应保持 1700，不再被夹回 1660');
+  eq(at.x + PIN_W - PIN_SCREEN.width, PINNED_OVERHANG, '右侧应恰好挂出 40px');
+});
+
+check('往右拖到极远：最多挂出 40px，不会整个跑出屏幕', () => {
+  const at = clampPinned(99999, 400, PIN_W, PIN_H, PIN_SCREEN);
+  eq(at.x, PIN_SCREEN.width - PINNED_OVERHANG, 'x 应夹到 1920-40=1880');
+  ok(at.x + PIN_W > PIN_SCREEN.width, '仍应挂出去一部分');
+  ok(at.x < PIN_SCREEN.width, '但必须仍有部分在屏内，否则抓不回来');
+});
+
+check('向左拖：同样允许挂出并有下限', () => {
+  const near = clampPinned(-30, 400, PIN_W, PIN_H, PIN_SCREEN);
+  eq(near.x, -30, '应保持 -30');
+  eq(-near.x, 30, '左侧挂出 30px');
+  const far = clampPinned(-99999, 400, PIN_W, PIN_H, PIN_SCREEN);
+  eq(far.x, -PIN_W + PINNED_OVERHANG, 'x 应夹到 -220');
+  eq(far.x + PIN_W, PINNED_OVERHANG, '屏内恰好剩 40px');
+});
+
+check('向下拖：允许挂出，最多挂出 40px', () => {
+  const at = clampPinned(800, 1000, PIN_W, PIN_H, PIN_SCREEN);
+  eq(at.y, 1000, '应保持 1000，而不是被夹到 880');
+  eq(at.y + PIN_H - PIN_SCREEN.height, 120, '下方挂出 120px');
+  eq(clampPinned(800, 99999, PIN_W, PIN_H, PIN_SCREEN).y, PIN_SCREEN.height - PINNED_OVERHANG, 'y 应夹到 1040');
+});
+
+check('向上拖【不】允许挂出 —— 标题栏是唯一的拖动把手', () => {
+  // 刻意的不对称：挂在屏幕上方会把标题栏推出屏幕，那条便签就再也拖不动了。
+  eq(clampPinned(800, -30, PIN_W, PIN_H, PIN_SCREEN).y, 0, '上边缘必须贴齐 0');
+  eq(clampPinned(800, -99999, PIN_W, PIN_H, PIN_SCREEN).y, 0, '拖到极上也要夹回 0');
+  eq(clampPinned(800, 5, PIN_W, PIN_H, PIN_SCREEN).y, 5, '屏幕内的位置不应被改动');
+});
+
+check('屏幕内的位置完全不受影响（与普通夹取一致）', () => {
+  // Coordinates that *both* clamps consider in-range, so the relaxation must be a no-op at each of
+  // them: x ∈ [0, 1660], y ∈ [0, 880] on a 1080-tall screen. Values past 880 are on screen but beyond
+  // the flush clamp — the two are *supposed* to disagree there, and the next check pins that down.
+  for (const [x, y] of [[0, 0], [950, 500], [1660, 880], [10, 20], [1000, 700]]) {
+    const pinned = clampPinned(x, y, PIN_W, PIN_H, PIN_SCREEN);
+    eq(pinned.x, x, `x=${x} 不应被改动`);
+    eq(pinned.y, y, `y=${y} 不应被改动`);
+    eq(pinned.x, clampX(x, PIN_W, PIN_SCREEN), `x=${x} 应与普通夹取一致`);
+    eq(pinned.y, clampY(y, PIN_H, PIN_SCREEN), `y=${y} 应与普通夹取一致`);
+  }
+});
+
+check('普通夹取够不到、但保留的便签够得到（这就是放宽的意义）', () => {
+  // y=900 leaves 20px of slack that the flush clamp refuses. Asserted explicitly so a future "tidy up"
+  // of the clamp cannot quietly undo the relaxation.
+  eq(clampY(900, PIN_H, PIN_SCREEN), 880, '普通夹取会把便签拉回 880');
+  const relaxed = clampPinned(1000, 900, PIN_W, PIN_H, PIN_SCREEN);
+  eq(relaxed.y, 900, '保留的便签应当能停在 900');
+  eq(relaxed.y + PIN_H - PIN_SCREEN.height, 20, '下方挂出 20px');
+});
+
+check('任何位置都保证「抓得回来」：可见区域不小于 40px，且标题栏始终可见', () => {
+  // 不变量：无论往哪个方向拖多远，便签与屏幕的交集在两个轴上都不小于 PINNED_OVERHANG，
+  // 且上边缘不得越过屏幕顶边。
+  for (const x of [-99999, -500, -40, 0, 500, 1700, 1900, 99999]) {
+    for (const y of [-99999, -500, -40, 0, 500, 1040, 1200, 99999]) {
+      const at = clampPinned(x, y, PIN_W, PIN_H, PIN_SCREEN);
+      const visibleW = Math.min(at.x + PIN_W, PIN_SCREEN.x + PIN_SCREEN.width) - Math.max(at.x, PIN_SCREEN.x);
+      const visibleH = Math.min(at.y + PIN_H, PIN_SCREEN.y + PIN_SCREEN.height) - Math.max(at.y, PIN_SCREEN.y);
+      ok(visibleW >= PINNED_OVERHANG, `x=${x} 时屏内宽度仅 ${visibleW}px`);
+      ok(visibleH >= PINNED_OVERHANG, `y=${y} 时屏内高度仅 ${visibleH}px`);
+      ok(at.y >= PIN_SCREEN.y, `y=${y} 时上边缘被推出了屏幕（y=${at.y}）`);
+    }
+  }
+});
+
+check('便签比屏幕还大时退回贴边，不产生负的可见区域', () => {
+  const huge = { width: 2400, height: 1400 };
+  const at = clampPinned(-100, -100, huge.width, huge.height, PIN_SCREEN);
+  eq(at.x, clampX(-100, huge.width, PIN_SCREEN), '超宽时横向退回普通夹取');
+  eq(at.y, clampY(-100, huge.height, PIN_SCREEN), '超高时纵向退回普通夹取');
+});
+
+check('屏幕原点为负（副屏在主屏左边）时同样成立', () => {
+  const leftScreen = { x: -1280, y: 0, width: 1280, height: 1024 };
+  eq(clampPinned(-1300, 400, PIN_W, PIN_H, leftScreen).x, -1300, '屏幕内的位置不该动');
+  const far = clampPinned(-99999, 400, PIN_W, PIN_H, leftScreen);
+  eq(far.x + PIN_W, leftScreen.x + PINNED_OVERHANG, '左侧挂出上限要跟着屏幕原点走');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

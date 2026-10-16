@@ -91,7 +91,8 @@ body {
   user-select: none;
   -webkit-app-region: no-drag;
   background: var(--note-bar-bg, rgba(255, 255, 255, 0.16));
-  border-bottom: 1px solid var(--note-fg-line, rgba(0, 0, 0, 0.14));
+  /* Divider between the title bar and the body — same family as the controls, at a quieter alpha. */
+  border-bottom: 1px solid var(--note-ink-line-soft, rgba(128, 128, 128, 0.28));
 }
 
 /* 类型标记：文本便签是圆点，截图便签是圆角方块 */
@@ -109,7 +110,11 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--note-fg, #3b3320);
+  /* The type mark is furniture, not content: it follows the note's background, not the body colour, so
+     it cannot disappear when someone picks a body colour close to their note. */
+  background: var(--note-ink-strong, rgba(128, 128, 128, 0.9));
+  /* The mark used to be softened with `opacity`, which was dropped when the ink took over — the alpha
+     is in the ink now, so this keeps the same weight. */
   opacity: 0.72;
 }
 
@@ -144,11 +149,11 @@ body.kind-shot .kind-dot {
 
 .title-input:focus {
   background: rgba(255, 255, 255, 0.42);
-  box-shadow: 0 0 0 1px var(--note-fg-line, rgba(0, 0, 0, 0.2));
+  box-shadow: 0 0 0 1px var(--note-ink-line-soft, rgba(128, 128, 128, 0.4));
 }
 
 .title-input::placeholder {
-  color: var(--note-fg-soft, rgba(0, 0, 0, 0.38));
+  color: var(--note-ink-soft, rgba(128, 128, 128, 0.5));
   font-weight: 400;
 }
 
@@ -169,7 +174,15 @@ body.kind-shot .kind-dot {
   border: 0;
   border-radius: 5px;
   background: var(--note-btn-bg, rgba(0, 0, 0, 0.08));
-  color: inherit;
+  /*
+   * `--note-ink`, not `inherit`.
+   *
+   * These are controls, so their legibility must not depend on the user's decorative text colour: a
+   * dark body colour on a black note used to make 「保存」/「关闭」 invisible. `--note-ink` is either pure
+   * white or pure black, picked per note by `inkForNote()` to contrast with the note's own background,
+   * and the button tints are derived from the same ink so the fill cannot fight the label.
+   */
+  color: var(--note-ink, #ffffff);
   font: inherit;
   font-size: 11px;
   line-height: 1;
@@ -186,7 +199,7 @@ body.kind-shot .kind-dot {
 }
 
 .tb-btn:focus-visible {
-  outline: 1px solid var(--note-fg-line, rgba(0, 0, 0, 0.4));
+  outline: 1px solid var(--note-ink-line, rgba(128, 128, 128, 0.6));
   outline-offset: 1px;
 }
 
@@ -199,7 +212,9 @@ body.kind-shot .kind-dot {
   border-radius: 999px;
   background: rgba(210, 153, 34, 0.28);
   box-shadow: inset 0 0 0 1px rgba(210, 153, 34, 0.6);
-  color: var(--note-fg, #f5f5f5);
+  /* Same ink as the toolbar buttons: this badge is a control-adjacent label and has to stay legible
+     whatever text colour the user chose for the body. */
+  color: var(--note-ink, #f5f5f5);
   font-size: 10px;
   font-weight: 600;
   line-height: 1.6;
@@ -218,7 +233,7 @@ body.kind-shot .kind-dot {
    否则用户无法解释它为什么和别的便签表现不同。 */
 .tb-btn.is-pinned {
   background: var(--note-btn-bg-hover, rgba(0, 0, 0, 0.24));
-  box-shadow: inset 0 0 0 1px var(--note-fg-line, rgba(0, 0, 0, 0.4));
+  box-shadow: inset 0 0 0 1px var(--note-ink-line, rgba(128, 128, 128, 0.45));
   font-weight: 600;
 }
 
@@ -268,11 +283,11 @@ body.kind-shot .kind-dot {
   user-select: text;
   cursor: text;
   scrollbar-width: thin;
-  scrollbar-color: var(--note-fg-line, rgba(0, 0, 0, 0.25)) transparent;
+  scrollbar-color: var(--note-ink-line-soft, rgba(128, 128, 128, 0.3)) transparent;
 }
 
 .editor::placeholder {
-  color: var(--note-fg-soft, rgba(0, 0, 0, 0.38));
+  color: var(--note-ink-soft, rgba(128, 128, 128, 0.5));
 }
 
 .editor::-webkit-scrollbar {
@@ -281,7 +296,7 @@ body.kind-shot .kind-dot {
 }
 
 .editor::-webkit-scrollbar-thumb {
-  background: var(--note-fg-line, rgba(0, 0, 0, 0.22));
+  background: var(--note-ink-line, rgba(128, 128, 128, 0.35));
   border-radius: 4px;
 }
 
@@ -318,7 +333,7 @@ body.kind-shot .kind-dot {
   margin: 0;
   padding: 12px;
   font-size: 12px;
-  color: var(--note-fg-soft, rgba(0, 0, 0, 0.5));
+  color: var(--note-ink-soft, rgba(128, 128, 128, 0.6));
   user-select: text;
   text-align: center;
   word-break: break-all;

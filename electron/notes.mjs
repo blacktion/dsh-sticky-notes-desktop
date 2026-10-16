@@ -25,10 +25,12 @@ import { fileURLToPath } from 'node:url';
 
 import {
   displayFor,
+  screenRectOf,
   hiddenBounds,
   snapToEdge,
   clampX,
   clampY,
+  clampPinned,
   constrainSize,
   revealZone,
   pointInRect,
@@ -38,6 +40,8 @@ import {
   HIDE_MODE_TAB,
   MIN_NOTE_WIDTH,
   MIN_NOTE_HEIGHT,
+  DEFAULT_NOTE_WIDTH,
+  DEFAULT_NOTE_HEIGHT,
 } from '../lib/host/geometry.js';
 
 /** Directory holding the helper's own HTML/CSS/preload assets. */
@@ -152,7 +156,10 @@ export class NoteManager {
       return { reason: 'getBounds-failed', error: String(error) };
     }
     const displays = screen.getAllDisplays();
-    const workArea = displayFor(displays, bounds).workArea;
+    // The physical screen, not the work area: 下 must land on the visible bottom rather than on the
+    // top of the taskbar. A note is always-on-top, so covering the taskbar is acceptable — and a note
+    // that hides against the taskbar is not hidden at all.
+    const workArea = screenRectOf(displayFor(displays, bounds));
     const snapDistance = this.#settings.snapDistance;
     const snapped = snapToEdge(bounds, workArea, snapDistance);
     return {
@@ -248,9 +255,9 @@ export class NoteManager {
   createTextNote(point) {
     const anchor = { x: Number(point?.x) || 0, y: Number(point?.y) || 0 };
     const displays = screen.getAllDisplays();
-    const workArea = displayFor(displays, { x: anchor.x, y: anchor.y, width: 260, height: 200 }).workArea;
-    const size = constrainSize(260, 200);
-    const spot = placeNear(anchor, size.width, size.height, workArea);
+    const screenRect = screenRectOf(displayFor(displays, { x: anchor.x, y: anchor.y, width: DEFAULT_NOTE_WIDTH, height: DEFAULT_NOTE_HEIGHT }));
+    const size = constrainSize(DEFAULT_NOTE_WIDTH, DEFAULT_NOTE_HEIGHT);
+    const spot = placeNear(anchor, size.width, size.height, screenRect);
 
     const note = {
       id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -350,14 +357,16 @@ export class NoteManager {
     const announce = options.announce === undefined ? !draft : options.announce === true;
 
     const displays = screen.getAllDisplays();
-    const workArea = displayFor(displays, {
-      x: Number(note.x) || 0,
-      y: Number(note.y) || 0,
-      width: Number(note.width) || 260,
-      height: Number(note.height) || 200,
-    }).workArea;
+    const screenRect = screenRectOf(
+      displayFor(displays, {
+        x: Number(note.x) || 0,
+        y: Number(note.y) || 0,
+        width: Number(note.width) || DEFAULT_NOTE_WIDTH,
+        height: Number(note.height) || DEFAULT_NOTE_HEIGHT,
+      }),
+    );
 
-    const size = constrainSize(note.width ?? 260, note.height ?? 200);
+    const size = constrainSize(note.width ?? DEFAULT_NOTE_WIDTH, note.height ?? DEFAULT_NOTE_HEIGHT);
     const wantsHidden = note.hidden === true && (note.edge === 'left' || note.edge === 'right' || note.edge === 'top' || note.edge === 'bottom');
 
     // A hidden note must start already hidden: creating it at full size and then
@@ -365,12 +374,12 @@ export class NoteManager {
     const initial = wantsHidden
       ? hiddenBounds(
           { x: note.x, y: note.y, width: size.width, height: size.height, edge: note.edge },
-          workArea,
+          screenRect,
           this.#hideMode(),
         )
       : {
-          x: clampX(Number(note.x) || 0, size.width, workArea),
-          y: clampY(Number(note.y) || 0, size.height, workArea),
+          x: clampX(Number(note.x) || 0, size.width, screenRect),
+          y: clampY(Number(note.y) || 0, size.height, screenRect),
           width: size.width,
           height: size.height,
         };
@@ -684,10 +693,19 @@ export class NoteManager {
     const state = this.#notes.get(id);
     if (state === undefined || state.window.isDestroyed()) return { ok: false };
     const displays = screen.getAllDisplays();
-    const workArea = displayFor(displays, state.note).workArea;
+    // Physical screen: a drag may push a note into the taskbar strip, and clamping it back out again
+    // would fight the user. The note is always-on-top there.
+    const workArea = screenRectOf(displayFor(displays, state.note));
 
-    const x = clampX(Number(bounds.x) || 0, state.note.width, workArea);
-    const y = clampY(Number(bounds.y) || 0, state.note.height, workArea);
+    // A kept-out note may hang past the sides and the bottom; every other note stays flush. See
+    // `clampPinned` for why the top is excluded — the title bar is the only drag handle, so a note
+    // hanging off the top could never be pulled back.
+    const wanted = { x: Number(bounds.x) || 0, y: Number(bounds.y) || 0 };
+    const clamped = state.note.pinned === true
+      ? clampPinned(wanted.x, wanted.y, state.note.width, state.note.height, workArea)
+      : { x: clampX(wanted.x, state.note.width, workArea), y: clampY(wanted.y, state.note.height, workArea) };
+    const x = clamped.x;
+    const y = clamped.y;
 
     // Deliberately NOT run through `#internal`.
     //
@@ -883,21 +901,26 @@ export class NoteManager {
     if (state.note.hidden) return;
 
     const displays = screen.getAllDisplays();
+    // Physical screen, like every other note boundary: this is the handler that decides the edge, so
+    // measuring against the work area here would leave 下 snapping to the taskbar while everything
+    // else believed the note sat on the screen edge.
     const display = displayFor(displays, bounds);
-    const workArea = display.workArea;
+    const workArea = screenRectOf(display);
 
     // A pinned note is exempt from edge behaviour entirely: it stays exactly where
     // the user put it, and nothing hides it. That is what "保留" means, and it is
     // also what stops the auto-hide from re-arming every time the note is nudged.
     if (state.note.pinned === true) {
       const size = constrainSize(bounds.width, bounds.height);
-      const x = clampX(bounds.x, size.width, workArea);
-      const y = clampY(bounds.y, size.height, workArea);
-      if (x !== bounds.x || y !== bounds.y) {
-        this.#internal(state, () => state.window.setBounds({ x, y }));
+      // Uses the same relaxed clamp as the drag path. Using the flush clamp here would silently undo
+      // the overhang on the very next gesture commit, so the note would appear to snap back for no
+      // reason the user could see.
+      const spot = clampPinned(bounds.x, bounds.y, size.width, size.height, workArea);
+      if (spot.x !== bounds.x || spot.y !== bounds.y) {
+        this.#internal(state, () => state.window.setBounds({ x: spot.x, y: spot.y }));
       }
-      state.note = { ...state.note, x, y, width: size.width, height: size.height, edge: null };
-      state.home = { x, y, width: size.width, height: size.height };
+      state.note = { ...state.note, x: spot.x, y: spot.y, width: size.width, height: size.height, edge: null };
+      state.home = { x: spot.x, y: spot.y, width: size.width, height: size.height };
       this.#emitPosition(state, true);
       return;
     }
@@ -1068,7 +1091,9 @@ export class NoteManager {
   #applyHidden(state, hidden) {
     if (state.window.isDestroyed()) return;
     const displays = screen.getAllDisplays();
-    const workArea = displayFor(displays, state.home).workArea;
+    // Physical screen, so 下 hides past the visible bottom edge instead of sitting on the taskbar —
+    // against the work area the "hidden" sliver would remain in plain sight.
+    const workArea = screenRectOf(displayFor(displays, state.home));
 
     if (state.hideTimer !== null) {
       clearTimeout(state.hideTimer);
@@ -1107,6 +1132,18 @@ export class NoteManager {
           state.window.setResizable(true);
           state.window.setBounds(shown);
           if (state.note.alwaysOnTop !== false) state.window.setAlwaysOnTop(true, 'floating');
+          // Re-raise explicitly.
+          //
+          // A note snapped to the bottom edge covers the taskbar, and the taskbar is itself a topmost
+          // window — so being topmost is not enough on its own; the note also has to be put in front of
+          // whatever is currently there. During the hide the window was moved while still visible
+          // (rather than hidden with `hide()`), and the reveal only moved it back, which leaves the
+          // shell's taskbar in front: the note returns to the right position but is drawn underneath it.
+          //
+          // `moveTop` and not `show()`: `show()` also activates the window, and stealing focus while the
+          // pointer merely passes a screen edge is not acceptable. The reveal path deliberately avoids
+          // taking focus (see `openNote`), and this keeps that property.
+          state.window.moveTop();
         });
       }
     } catch (error) {
@@ -1237,7 +1274,11 @@ export class NoteManager {
       // Resolved once per note, for both branches below: the hidden branch needs it
       // to place the reveal zone, the visible branch to tell whether the pointer is
       // still in that zone.
-      const workArea = displayFor(displays, state.home).workArea;
+      //
+      // Must be the same rectangle used to hide the note. With the work area, a note hidden past the
+      // physical bottom edge leaves its reveal zone ending at the taskbar — 40px of screen at the very
+      // edge where the pointer would never bring the note back.
+      const workArea = screenRectOf(displayFor(displays, state.home));
 
       if (state.note.hidden) {
         const zone = revealZone({ ...state.home, edge: state.note.edge }, workArea, undefined, this.#hideMode());

@@ -62,7 +62,30 @@
 
 ## 安装
 
-通过 DSH 的插件管理器安装（`plugin_manager` → `install_bundle`）。
+**最省事的方式 —— 用 DSH 自带的插件管理。** 打开「插件」，点「添加插件」，填入包名，点「安装」：
+
+![在 DSH 里添加插件](docs/install-dialog.png)
+
+```
+dsh-sticky-notes-desktop
+```
+
+就这一步，不用克隆仓库也不用开终端。这个输入框接受 npm 包名、GitHub 仓库地址，或本地目录路径。
+
+> 建议先看一眼提示上方的**「安装源」**下拉框：它默认选中**中国大陆镜像源**，在国内是对的，在外面是错的。
+> 如果你不在国内、安装很慢或失败，把它切换成默认源。
+
+然后**重启 DSH**：profile 的 bundle 列表只在启动时读取。
+
+下面这几种是从对话侧做同样的事，不想用界面时用。
+
+**从 npm 安装**
+
+```
+plugin_manager(action="install_bundle", target="dsh-sticky-notes-desktop")
+```
+
+包名就是 [`dsh-sticky-notes-desktop`](https://www.npmjs.com/package/dsh-sticky-notes-desktop)，这是最省事的方式：不用克隆仓库，也不用自己打包。
 
 **从本仓库安装**
 
@@ -75,7 +98,7 @@ plugin_manager(action="install_bundle", target="<这个检出目录的绝对路�
 **从打包文件安装**
 
 ```bash
-npm pack    # 产出 dsh-sticky-notes-desktop-0.1.0.tgz
+npm pack    # 产出 dsh-sticky-notes-desktop-<版本号>.tgz
 ```
 
 ```
@@ -83,16 +106,6 @@ plugin_manager(action="install_bundle", target="<那个 .tgz 的绝对路径>")
 ```
 
 `.tgz` 会被真正**复制**进 profile，不再指向源码目录，所以在别的机器上也能用。
-
-**从 npm 安装**
-
-```
-plugin_manager(action="install_bundle", target="dsh-sticky-notes-desktop")
-```
-
-包名就是 [`dsh-sticky-notes-desktop`](https://www.npmjs.com/package/dsh-sticky-notes-desktop)，这是最省事的方式：不用克隆仓库，也不用自己打包。
-
-然后**重启 DSH**：profile 的 bundle 列表只在启动时读取。
 
 > `~/.dsh/profiles/desktop` 由 Electron 应用独占管理，`dsh --profile desktop` 会被拒绝。请通过应用内的插件管理安装，或直接改该 profile 的 `package.json`。
 
@@ -113,7 +126,11 @@ plugin_manager(action="install_bundle", target="dsh-sticky-notes-desktop")
 
 ![默认黑色便签](docs/note-black.png)
 
-颜色、透明度、文字色都在「设置 → 便签设置」里改；改文字色会自动带动所有前景元素的配色。
+颜色、透明度、文字色都在「设置 → 便签设置」里改。
+
+**文字色**只管便签自己的内容 —— 标题和正文。标题栏上的控件**刻意不跟随**文字色：按钮、类型标记、
+分割线、输入提示都从便签**背景色**推出自己的颜色，所以不管你选什么文字色，它们都看得清。在黑便签上
+选深色文字，正文难读是你自己的选择，但「保存」「关闭」依然清晰。
 
 ---
 
@@ -168,6 +185,13 @@ plugin_manager(action="install_bundle", target="dsh-sticky-notes-desktop")
 - 点一下 → 变成 **`取消保留`**（并高亮），这条便签从此**不再吸附、也不会自动隐藏**，就停在你放的位置；
 - 再点一下 → 交还给正常行为。
 
+保留的便签还可以**往左、右、下三个方向挂出屏幕** —— 「就停在这儿」这个要求，只有在便签能挂在屏幕边上
+时才算真的成立：一半挂在右边缘外，既让开了地方，又还看得见。
+
+- **屏内至少留 40px**，所以任何时候都抓得回来。
+- **上边是例外**，始终贴齐屏幕顶边：标题栏是唯一能拖动便签的地方，往上挂出等于把它自己的把手推出
+  屏幕，那条便签就再也拖不动了。
+
 这个状态存在 `data.json` 里，重启后依然生效。左侧栏列表里也有同样的按钮。
 
 ## 截图与标注
@@ -221,6 +245,10 @@ plugin_manager(action="install_bundle", target="dsh-sticky-notes-desktop")
 | 自动隐藏延迟 | 贴边后停多久隐藏 |
 | 唤出延迟 | 鼠标碰到屏幕边缘后多久滑回 |
 | 随 DSH 自动启动 | 关掉后助手不再自动拉起 |
+
+页面下方还会显示**当前安装的版本号**，并告诉你 npm 上有没有更新的版本：**有新版本 vX.Y.Z**（点一下可
+重新检查）或**已是最新**。如果这个包不是从 registry 装的（本地目录或 `.tgz`），就什么都不显示 ——
+没有可比的已发布版本；检查失败时同样不显示，离线不该被弹一句错。
 
 > 便签窗口**自身不带取色按钮**：颜色属于偏好设置，统一在「便签设置」里改。标题栏只有 保存 / 保留 / 关闭 / 删除（截图便签多一个「另存」）。
 
